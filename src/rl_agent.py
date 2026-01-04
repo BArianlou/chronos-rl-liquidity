@@ -1,7 +1,7 @@
 import numpy as np
 import random
 from collections import deque
-from .chronos_ai import ChronosAI
+from chronos_ai import ChronosAI 
 
 class RLAgent:
     """The Sovereign Actor: Executes policies derived from the ChronosAI backbone."""
