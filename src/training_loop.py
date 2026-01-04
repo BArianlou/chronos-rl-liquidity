@@ -3,13 +3,13 @@ import argparse
 import sys
 import os
 
-sys.path.append(os.path.dirname(__file__))
-try:
-    from market_env import ChronosMarketEnv
-    from rl_agent import RLAgent
-except ImportError:
-    from .market_env import ChronosMarketEnv
-    from .rl_agent import RLAgent
+# Force path synchronization for GitHub Actions
+current_dir = os.path.dirname(os.path.abspath(__file__))
+if current_dir not in sys.path:
+    sys.path.insert(0, current_dir)
+
+from market_env import ChronosMarketEnv
+from rl_agent import RLAgent
 
 def run_chronos_training(episodes=1000):
     env = ChronosMarketEnv()
