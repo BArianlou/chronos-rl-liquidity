@@ -1,6 +1,6 @@
+[![Chronos Intelligence Audit](https://github.com/BArianlou/chronos-rl-liquidity/actions/workflows/chronos_ci.yml/badge.svg)](https://github.com/BArianlou/chronos-rl-liquidity/actions/workflows/chronos_ci.yml)
 # Chronos: Deep Reinforcement Learning Liquidity Engine
 
-![Build Status](https://img.shields.io/badge/Build-Passing-success)
 ![AI Framework](https://img.shields.io/badge/AI-TensorFlow%20%2F%20Keras-orange)
 ![Algorithm](https://img.shields.io/badge/Algorithm-DQN%20%2B%20PPO-blue)
 ![License](https://img.shields.io/badge/License-MIT-green)
