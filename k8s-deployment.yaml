@@ -1,0 +1,33 @@
+apiVersion: apps/v1
+kind: Deployment
+metadata:
+  name: chronos-liquidity-engine
+  namespace: enterprise-mlops
+  labels:
+    app: chronos-rl
+    tier: backend
+spec:
+  replicas: 3
+  selector:
+    matchLabels:
+      app: chronos-rl
+  template:
+    metadata:
+      labels:
+        app: chronos-rl
+    spec:
+      containers:
+      - name: chronos-pyspark-worker
+        image: barianlou/chronos-engine:v1.0.0
+        resources:
+          limits:
+            memory: "8Gi"
+            cpu: "4"
+          requests:
+            memory: "4Gi"
+            cpu: "2"
+        env:
+        - name: SPARK_MODE
+          value: "worker"
+        - name: KAFKA_BROKER_URL
+          value: "kafka-cluster.enterprise-mlops.svc.cluster.local:9092"
