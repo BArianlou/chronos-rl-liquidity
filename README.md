@@ -20,24 +20,27 @@ Chronos is an autonomous execution agent designed to optimize liquidity entry/ex
 ## 2. Agent-Environment Interaction
 The system operates on a continuous feedback loop where the Agent observes the Market State (Order Book + Volatility) and outputs an Action (Limit/Market Order), receiving a Reward based on PnL efficiency.
 
-### Learning Loop (Live Render)
-```mermaid
-stateDiagram-v2
-    [*] --> Initialize
-    Initialize --> Market_Environment : Load Historical Ticks
+flowchart TD
+    %% Styling
+    classDef startEnd fill:#1f2937,stroke:#3b82f6,stroke-width:2px,color:#f9fafb;
+    classDef envNode fill:#111827,stroke:#6366f1,stroke-width:2px,color:#f9fafb;
+    classDef modelNode fill:#1e1b4b,stroke:#8b5cf6,stroke-width:2px,color:#f9fafb;
+    classDef actionNode fill:#064e3b,stroke:#10b981,stroke-width:2px,color:#f9fafb;
+    classDef evalNode fill:#374151,stroke:#9ca3af,stroke-width:1px,color:#f9fafb;
 
-    state "Reinforcement Learning Cycle" as RL_Loop {
-        Market_Environment --> Agent_Observation : State Vector (t)
-        Agent_Observation --> Policy_Network_DQN : Tensor Input
-        Policy_Network_DQN --> Action_Space : Compute Q-Values (Argmax)
-        Action_Space --> Market_Environment : Execute Trade
-        Market_Environment --> Reward_Function : Calculate Risk-Adj Return
-        Reward_Function --> Policy_Network_DQN : Backpropagate Gradients
-    }
+    Init([Initialize & Load Historical Ticks]):::startEnd --> MarketEnv[Market Environment & Order Book]:::envNode
 
-    RL_Loop --> Terminate : Episode Complete
-    Terminate --> [*]
-```
+    subgraph RL_Cycle [Reinforcement Learning Execution Cycle]
+        MarketEnv -->|State Vector t| Obs[Agent Observation Layer]:::evalNode
+        Obs -->|Tensor Input| DQN[DQN Policy Network]:::modelNode
+        DQN -->|Compute Q-Values Argmax| Action[Action Space: Limit / Market Order]:::actionNode
+        
+        Action -->|Execute Trade| MarketEnv
+        MarketEnv -->|PnL & Risk Multiplier| Reward[Reward Function]:::evalNode
+        Reward -->|Backpropagate Loss / Gradients| DQN
+    end
+
+    MarketEnv -->|Episode Limit / Criteria Met| Terminate([Episode Complete / Terminate]):::startEnd
 
 ### Core Capabilities
 *   **Adaptive Policy:** Uses Deep Q-Networks (DQN).
