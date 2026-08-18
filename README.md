@@ -13,9 +13,9 @@
 ## 1. Architectural Intent
 Chronos is an autonomous execution agent designed to optimize liquidity entry/exit points using Deep Reinforcement Learning (DRL). Unlike static algorithmic trading scripts, Chronos utilizes a **Dynamic Policy Network** that adapts to changing market volatility regimes (Regime Switching), maximizing Sharpe Ratio while minimizing slippage.
 
-### Language & System Integration
-* **Core Reference Engine:** Python 3.x (TensorFlow, Keras, Gymnasium) — *contained in this public repository*.
-* **Enterprise Execution Layer:** Distributed data pipeline and streaming telemetry wrappers leverage **Scala (Apache Spark Core / Spark Streaming)** for high-throughput temporal data processing.
+#### Language & System Integration
+* **Core Reference Engine:** Python 3.x (PyTorch, NumPy, SciPy, Gymnasium) — *contained in this public repository.*
+* **Enterprise Execution Layer:** Distributed data pipeline and streaming telemetry wrappers leverage Apache Spark (PySpark / Scala) and Apache Kafka for high-throughput temporal data processing, state-space drift monitoring, and low-latency automated retraining.
 
 ## 2. Agent-Environment Interaction
 The system operates on a continuous feedback loop where the Agent observes the Market State (Order Book + Volatility) and outputs an Action (Limit/Market Order), receiving a Reward based on PnL efficiency.
