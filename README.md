@@ -78,7 +78,6 @@ Chronos models the market microstructure as a continuous feedback loop. At each 
 - **Kinetic Reward Shaping:** Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.
 - **Distributed Drift Detection:** Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.
 
----
 
 ---
 
