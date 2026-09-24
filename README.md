@@ -84,16 +84,7 @@ Chronos models the market microstructure as a continuous feedback loop. At each 
 
 This repository contains the **Reference Architecture and Environment Wrappers**. Production deployment mandates connection to low-latency matching engine gateways, specialized tick-data infrastructure, and hardware-accelerated state storage.
 
-For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:  
-**Contact the Architect.**
-/chronos-engine          # PyTorch DQN agents, policy graphs, and network weights
-/environments           # Gymnasium continuous market simulation environments
-/data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
-/tests                  # Deterministic validation and invariant smoke checks
-Dockerfile              # Multi-stage container deployment specification
-requirements.txt        # Pinned dependency graph and build constraints
----
-
+For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:
 /chronos-engine          # PyTorch DQN agents, policy graphs, and network weights
 /environments           # Gymnasium continuous market simulation environments
 /data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
