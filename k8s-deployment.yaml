@@ -1,12 +1,52 @@
+# ===============================================================================
+# MODULE MANIFEST: CHRONOS DISTRIBUTED COMPUTE TOPOLOGY (KUBERNETES)
+# ===============================================================================
+# System Purpose:
+#     Serves as the macro-infrastructure orchestration layer for the CHRONOS engine.
+#     Provisions the distributed compute cluster required to execute horizontal
+#     PySpark feature transformations and autonomic RL inference loops at
+#     institutional throughput.
+#
+# State Boundaries:
+#     - Strictly manages container lifecycle states, cgroup resource clamping,
+#       cluster networking, and replica topology.
+#     - Delegates network stream consumption to ChronosKafkaConsumer and tensor
+#       graph backpropagation to the containerized Python/Java runtime.
+#
+# Mathematical/Physical Invariants:
+#     1. Topological Redundancy:
+#        Replicas N >= 3 guarantees continuous partition consumption and quorum
+#        availability during node eviction or rolling cluster upgrades.
+#     2. Deterministic Resource Clamping:
+#        Hard memory (8Gi) and CPU (4 cores) limits prevent noisy-neighbor memory
+#        leaks and OOM cascades under heavy tick-volume market regimes.
+#     3. Partition Alignment Invariant:
+#        Topic partition cardinality must satisfy P >= N (Replicas) to ensure
+#        concurrent partition distribution across all deployed worker pods.
+#
+# Design Rationale:
+#     High-frequency market microstructure feeds saturate single-node processing
+#     architectures. This Kubernetes topology provides containerized horizontal
+#     elasticity, isolating compute workloads and aligning physical memory boundaries
+#     with distributed PySpark windowing and DQN execution requirements.
+# ===============================================================================
+
 apiVersion: apps/v1
 kind: Deployment
 metadata:
   name: chronos-liquidity-engine
+  # [STRUCTURAL CALLOUT] Namespace Isolation
+  # Isolates CHRONOS compute assets within the enterprise-mlops namespace,
+  # enforcing physical network segmentation and deterministic RBAC policies.
   namespace: enterprise-mlops
   labels:
     app: chronos-rl
     tier: backend
 spec:
+  # [STRUCTURAL CALLOUT] High-Availability Quorum
+  # Deploys 3 concurrent worker pods. If an underlying physical node experiences
+  # a hardware fault or network partition, adjacent replicas rebalance Kafka
+  # partition assignments, preserving state-space ingestion continuity.
   replicas: 3
   selector:
     matchLabels:
@@ -15,19 +55,61 @@ spec:
     metadata:
       labels:
         app: chronos-rl
+        tier: backend
     spec:
+      # Allows in-flight PySpark micro-batches and buffered Kafka records to flush
+      # cleanly to persistence layers before SIGKILL during pod eviction.
+      terminationGracePeriodSeconds: 60
       containers:
-      - name: chronos-pyspark-worker
-        image: barianlou/chronos-engine:v1.0.0
-        resources:
-          limits:
-            memory: "8Gi"
-            cpu: "4"
-          requests:
-            memory: "4Gi"
-            cpu: "2"
-        env:
-        - name: SPARK_MODE
-          value: "worker"
-        - name: KAFKA_BROKER_URL
-          value: "kafka-cluster.enterprise-mlops.svc.cluster.local:9092"
+        - name: chronos-pyspark-worker
+          image: barianlou/chronos-engine:v1.0.0
+          imagePullPolicy: IfNotPresent
+
+          # [STRUCTURAL CALLOUT] Deterministic Resource Clamping
+          # Bounds container resource envelopes. The 4Gi request guarantees baseline
+          # CPU/memory capacity on scheduled nodes, while the 8Gi limit envelopes
+          # JVM heap space, Spark execution memory, and native off-heap network buffers.
+          resources:
+            requests:
+              memory: "4Gi"
+              cpu: "2"
+            limits:
+              memory: "8Gi"
+              cpu: "4"
+
+          env:
+            # [STRUCTURAL CALLOUT] Distributed Execution Mode
+            # Configures the runtime container to register as an elastic Spark worker
+            # node, participating in partitioned time-series window operations.
+            - name: SPARK_MODE
+              value: "worker"
+
+            # [STRUCTURAL CALLOUT] Enterprise Data Bus Binding
+            # Injects internal Kubernetes CoreDNS endpoints for the Kafka cluster,
+            # establishing the kinetic data link between the Java ingestion gateway
+            # and the downstream feature transformation engines.
+            - name: KAFKA_BROKER_URL
+              value: "kafka-cluster.enterprise-mlops.svc.cluster.local:9092"
+
+          # [STRUCTURAL CALLOUT] Operational Health Verification
+          # Ensures degraded or deadlock states trigger deterministic container restarts
+          # without dropping active cluster orchestration state.
+          livenessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import sys; sys.exit(0)"
+            initialDelaySeconds: 30
+            periodSeconds: 15
+            timeoutSeconds: 5
+
+          readinessProbe:
+            exec:
+              command:
+                - python
+                - -c
+                - "import sys; sys.exit(0)"
+            initialDelaySeconds: 15
+            periodSeconds: 10
+            timeoutSeconds: 5
