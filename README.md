@@ -71,28 +71,21 @@ Chronos models the market microstructure as a continuous feedback loop. At each 
                | Execution Report & Fill Telemetry
                v
  [ VENUE / MATCHING ENGINE ]
-## 4. Core Capabilities
+4. Core Capabilities
+Adaptive Regime-Switching Policy: Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.
 
-- **Adaptive Regime-Switching Policy:** Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.
-- **Microstructure Awareness:** Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.
-- **Kinetic Reward Shaping:** Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.
-- **Distributed Drift Detection:** Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.
+Microstructure Awareness: Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.
 
+Kinetic Reward Shaping: Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.
 
----
+Distributed Drift Detection: Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.
 
-## 5. Implementation Notice
+5. Implementation Notice
+This repository contains the Reference Architecture and Environment Wrappers. Production deployment mandates connection to low-latency matching engine gateways, specialized tick-data infrastructure, and hardware-accelerated state storage.
 
-This repository contains the **Reference Architecture and Environment Wrappers**. Production deployment mandates connection to low-latency matching engine gateways, specialized tick-data infrastructure, and hardware-accelerated state storage.
+For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:
 
-For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:  
-**Contact the Architect.**
-
----
-
-## 6. Repository Structure
-
-```text
+Contact the Architect.
 /chronos-engine          # PyTorch DQN agents, policy graphs, and network weights
 /environments           # Gymnasium continuous market simulation environments
 /data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
