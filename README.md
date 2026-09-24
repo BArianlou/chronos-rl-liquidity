@@ -39,54 +39,39 @@ The core optimization framework optimizes risk-penalized execution returns:
 
 ## 3. Agent-Environment Interaction
 
-Chronos models the market microstructure as a continuous feedback loop. At each temporal slice, the agent samples the normalized limit order book state, processes high-frequency signals, and selects an optimal allocation tactic.
+Chronos models the market microstructure as a continuous feedback loop. At each temporal slice, the agent samples the normalized limit order book state, processes high-frequency signals, and selects an optimal allocation tactic:
 
-```text
- [ MARKET DATA STREAM (L2/L3) ]
-               |
-               | Level-2 Depth + Executed Ticks
-               v
-+-------------------------------------------------------------------------------+
-| CHRONOS TELEMETRY & EXECUTION PIPELINE                                        |
-|                                                                               |
-|  [ INGESTION LAYER: APACHE KAFKA & SPARK ]                                    |
-|    |-- Low-Latency Ingress: Depth Deltas, Trade Prints, Volume Clusters       |
-|    `-- Temporal Aggregation: Feature Normalization & Drift Bounds             |
-|          |                                                                    |
-|          | Normalized State Vector: S_t = [OBI, Spread, Volatility, Imbalance] |
-|          v                                                                    |
-|  [ AUTONOMIC ML CORE: PYTORCH DQN ]                                           |
-|    |-- Deep Q-Network Policy Inference: Q(S_t, A_t; θ)                        |
-|    |-- Regime Detection: Volatility Clamping & Epsilon Modulation             |
-|    `-- Optimal Action Selection: A_t = argmax_a Q(S_t, a)                     |
-|          |                                                                    |
-|          | Action Vectors: [Passive Limit | Mid-Peg | Aggressive Fill]        |
-|          v                                                                    |
-|  [ EXECUTION & REWARD ENGINE ]                                                |
-|    |-- Route Orders to Venue Order Book                                       |
-|    |-- Measure Execution: Fill Latency, Realized Slippage, Adverse Selection  |
-|    `-- Emit Shaped Reward Signal -> Experience Replay Buffer (Memory)         |
-+-------------------------------------------------------------------------------+
-               |
-               | Execution Report & Fill Telemetry
-               v
- [ VENUE / MATCHING ENGINE ]
+1. **Ingress & Streaming:** Market depth (L2/L3) and executed tick clusters stream via Apache Kafka into Spark temporal aggregation pipelines.
+2. **State Vectorization:** Real-time extraction of normalized features: Order Book Imbalance (OBI), bid/ask spread, volatility, and volume skew.
+3. **Policy Evaluation:** PyTorch DQN selects an optimal execution action (Passive Limit, Mid-Peg, or Aggressive Fill) under volatility regime clamping.
+4. **Execution & Feedback:** Orders route to the target venue, and realized execution metrics (fill latency, slippage, and adverse selection) emit shaped reward signals back to the experience replay memory.
+
+---
 
 ## 4. Core Capabilities
 
-Adaptive Regime-Switching Policy: Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.
-
-Microstructure Awareness: Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.
-
-Kinetic Reward Shaping: Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.
-
-Distributed Drift Detection: Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.
+- **Adaptive Regime-Switching Policy:** Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.
+- **Microstructure Awareness:** Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.
+- **Kinetic Reward Shaping:** Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.
+- **Distributed Drift Detection:** Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.
 
 ---
 
 ## 5. Implementation Notice
 
-This repository contains the Reference Architecture and Environment Wrappers. Production deployment mandates connection to low-latency matching engine gateways, specialized tick-data infrastructure, and hardware-accelerated state storage.
+This repository contains the **Reference Architecture and Environment Wrappers**. Production deployment mandates connection to low-latency matching engine gateways, specialized tick-data infrastructure, and hardware-accelerated state storage.
 
-For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:
-Contact the Architect.
+For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:  
+**Contact the Architect.**
+
+---
+
+## 6. Repository Structure
+
+```text
+/chronos-engine          # PyTorch DQN agents, policy graphs, and network weights
+/environments           # Gymnasium continuous market simulation environments
+/data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
+/tests                  # Deterministic validation and invariant smoke checks
+Dockerfile              # Multi-stage container deployment specification
+requirements.txt        # Pinned dependency graph and build constraints
