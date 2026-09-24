@@ -1,5 +1,69 @@
-numpy>=1.24.0
-tensorflow>=2.15.0
-gymnasium>=0.29.1
-pandas>=2.1.0
-matplotlib>=3.8.0
+# ===============================================================================
+# MODULE MANIFEST: CHRONOS DETERMINISTIC DEPENDENCY GRAPH (REQUIREMENTS)
+# ===============================================================================
+# System Purpose:
+#     Serves as the foundational mathematical and computational registry for the
+#     CHRONOS engine. Defines the strict library envelopes required to instantiate
+#     the Deep Q-Network, the continuous Markov Decision Process (MDP) environment,
+#     the distributed ETL feature engine, and vectorized tensor updates.
+#
+# State Boundaries:
+#     - Strictly manages the Python execution environment and ABI boundaries.
+#     - Prevents upstream package mutations and semantic version drift from
+#       corrupting tensor geometries, gradient stability, or pipeline reproducibility.
+#
+# Mathematical/Physical Invariants:
+#     1. SESSION_CONTEXT_FIDELITY:
+#        Enforces reproducible computational baselines across local sandboxes,
+#        ephemeral CI/CD runners, and containerized Kubernetes clusters.
+#     2. Compatible Release Bounding (~= / <):
+#        Enforces verified API feature floors while establishing upper-bound
+#        ceilings against breaking major runtime mutations.
+#
+# Design Rationale:
+#     Unconstrained dependencies in deep reinforcement learning pipelines introduce
+#     non-deterministic execution paths, driver conflicts, and silent mathematical
+#     deviations. This manifest establishes a deterministic dependency lock, ensuring
+#     identical graph compilation and mathematical convergence across all targets.
+# ===============================================================================
+
+# [STRUCTURAL CALLOUT] Core Tensor Geometry & Vectorization
+# Architectural Mandate: Provides foundational C-optimized ndarrays required
+# for vectorized Bellman target updates and dimension-safe state projections in
+# RLAgent. Strictly bound to prevent legacy array coercion side effects.
+numpy>=1.24.0,<2.0.0
+
+# [STRUCTURAL CALLOUT] Neural Topology & Gradient Control
+# Instantiates the computational graph for the ChronosAI backbone. Enforces
+# numerical stability for Huber loss execution (Kinetic Gradient Control) and
+# Adam optimization across high-frequency mini-batch updates.
+tensorflow>=2.15.0,<2.17.0
+
+# [STRUCTURAL CALLOUT] MDP Simulation Boundaries
+# Replaces deprecated gym APIs. Gymnasium provides the modern spaces.Box and
+# spaces.Discrete specifications that enforce position caps and bounded geometric
+# price walks within ChronosMarketEnv.
+gymnasium>=0.29.1,<1.1.0
+
+# [STRUCTURAL CALLOUT] Distributed Data Fusion & Telemetry Windowing
+# Architectural Mandate: Powers the distributed feature pipeline (ChronosSparkPipeline).
+# Executes wide partition transformations, rolling kinetic aggregations, and
+# distributed StandardScaler fitting across institutional tick archives.
+pyspark>=3.5.0,<3.6.0
+
+# [STRUCTURAL CALLOUT] Time-Series Alignment & Anti-Drift Clamping
+# Supports local data transformation and tabular feature alignment. Guarantees
+# deterministic handling of missing values via the Anti-Drift Truncation Lock (dropna).
+pandas>=2.1.0,<3.0.0
+
+# [STRUCTURAL CALLOUT] Glass Box Observability & Verification
+# Translates high-dimensional state dynamics into observable telemetry for
+# SCIENTIFIC_VALIDATION audits, rendering convergence curves, entropy decay,
+# and friction profiles without mutating running state.
+matplotlib>=3.8.0,<4.0.0
+
+# [STRUCTURAL CALLOUT] Automated Verification Gate
+# Foundational harness for running deterministic pre-flight checks and unit
+# assertions in CI/CD pipelines and containerized staging pods.
+pytest>=7.4.0,<9.0.0
+flake8>=6.1.0,<8.0.0
