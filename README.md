@@ -92,3 +92,14 @@ For institutional integration manifests, production distributed architectures, o
 /tests                  # Deterministic validation and invariant smoke checks
 Dockerfile              # Multi-stage container deployment specification
 requirements.txt        # Pinned dependency graph and build constraints
+---
+
+## 6. Repository Structure
+
+```text
+/chronos-engine          # PyTorch DQN agents, policy graphs, and network weights
+/environments           # Gymnasium continuous market simulation environments
+/data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
+/tests                  # Deterministic validation and invariant smoke checks
+Dockerfile              # Multi-stage container deployment specification
+requirements.txt        # Pinned dependency graph and build constraints
