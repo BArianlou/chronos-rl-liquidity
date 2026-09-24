@@ -71,22 +71,32 @@ Chronos models the market microstructure as a continuous feedback loop. At each 
                | Execution Report & Fill Telemetry
                v
  [ VENUE / MATCHING ENGINE ]
-4. Core Capabilities
-Adaptive Regime-Switching Policy: Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.
 
-Microstructure Awareness: Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.
+## 4. Core Capabilities
 
-Kinetic Reward Shaping: Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.
+*   **Adaptive Policy (DQN):** Dynamically maps multi-dimensional market micro-structure to optimal execution sequences.
+*   **Kinetic Gradient Control:** Utilizes Huber loss to mathematically cap gradient explosions during flash crashes or liquidity vacuums.
+*   **Vectorized Experience Replay:** Processes contiguous memory matrices to eliminate the kinetic drag of iterative tensor operations.
+*   **Microstructure Awareness:** Directly penalizes execution into thin order books via the Liquidity Fragmentation Penalty (LFP).
+*   **Deterministic Bounds:** Enforces strict geometric price limits and maximum inventory constraints to prevent infinite-leverage exploits.
 
-Distributed Drift Detection: Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.
+---
 
-5. Implementation Notice
-This repository contains the Reference Architecture and Environment Wrappers. Production deployment mandates connection to low-latency matching engine gateways, specialized tick-data infrastructure, and hardware-accelerated state storage.
+## 5. Implementation Notice
 
-For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:
+This repository contains the core Environment Wrappers, RL Agents, and Enterprise Data Pipelines. It serves as a Reference Architecture.
+
+For backtest performance reports, enterprise integration, or deployment documentation:  
+**Contact the Architect.**
 
 Contact the Architect.
 /chronos-engine          # PyTorch DQN agents, policy graphs, and network weights
+/environments           # Gymnasium continuous market simulation environments
+/data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
+/tests                  # Deterministic validation and invariant smoke checks
+Dockerfile              # Multi-stage container deployment specification
+requirements.txt        # Pinned dependency graph and build constraints
+/chronos-engine         # TensorFlow DQN agents, policy graphs, and network weights
 /environments           # Gymnasium continuous market simulation environments
 /data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
 /tests                  # Deterministic validation and invariant smoke checks
