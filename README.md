@@ -47,6 +47,68 @@ Chronos models the market microstructure as a continuous feedback loop. At each 
 4. **Execution & Feedback:** Orders route to the target venue, and realized execution metrics (fill latency, slippage, and adverse selection) emit shaped reward signals back to the experience replay memory.
 
 ---
+```mermaid
+graph TD
+    %% Streaming Ingress
+    subgraph INGRESS["MARKET DATA INGRESS & STREAMING"]
+        direction TB
+        MKT["Market Feeds: L2/L3 Depth & Executed Ticks"]
+        KAFKA["Apache Kafka: Low-Latency Streaming Cluster"]
+        SPARK["PySpark / Scala: Temporal Feature Aggregation & Drift Detection"]
+        MKT --> KAFKA --> SPARK
+    end
+
+    %% State Vectorization
+    STATE["<b>Normalized State Vector S_t</b><br/>Order Book Imbalance (OBI) &bull; Bid/Ask Spread &bull; Volatility Skew &bull; Volume Queues"]
+    SPARK --> STATE
+
+    %% Agent Policy Core
+    subgraph DRL["CHRONOS AUTONOMIC DRL AGENT"]
+        direction TB
+        DQN["PyTorch DQN Policy Network<br/>Q(s, a; &theta;) Backbone Clamping"]
+        POLICY{"Regime-Switching<br/>Action Selection"}
+        
+        ACT_PASS["Passive Limit (Maker)"]
+        ACT_PEG["Mid-Peg Allocation"]
+        ACT_AGG["Aggressive Fill (Taker)"]
+
+        DQN --> POLICY
+        POLICY --> ACT_PASS
+        POLICY --> ACT_PEG
+        POLICY --> ACT_AGG
+    end
+
+    STATE --> DQN
+
+    %% Venue Execution
+    VENUE["<b>Execution Venue / Matching Engine</b><br/>Order Routing & Fill Telemetry"]
+    ACT_PASS --> VENUE
+    ACT_PEG --> VENUE
+    ACT_AGG --> VENUE
+
+    %% Closed-Loop Feedback
+    subgraph REPLAY["CLOSED-LOOP FEEDBACK & TRAINING"]
+        direction TB
+        METRICS["Realized Metrics: Slippage &bull; Fill Latency &bull; Adverse Selection"]
+        REWARD["<b>Kinetic Reward Shaping</b><br/>R_t = PnL_Efficiency &minus; (&lambda;&sub1; &bull; Slippage) &minus; (&lambda;&sub2; &bull; Drawdown)"]
+        BUFFER["Prioritized Experience Replay Buffer<br/>Bellman Optimality Gradient Update"]
+
+        METRICS --> REWARD --> BUFFER
+    end
+
+    VENUE --> METRICS
+    BUFFER -.->|"Asynchronous Weight Updates & Target Sync"| DQN
+
+    %% Styling
+    style INGRESS fill:#161b22,stroke:#f0883e,stroke-width:1px,color:#ffa657
+    style DRL fill:#0d1117,stroke:#58a6ff,stroke-width:2px,color:#79c0ff
+    style REPLAY fill:#161b22,stroke:#bc8cff,stroke-width:1px,color:#d2a8ff
+    style STATE fill:#161b22,stroke:#30363d,stroke-width:1px,color:#c9d1d9
+    style VENUE fill:#161b22,stroke:#238636,stroke-width:1px,color:#3fb950
+    style POLICY fill:#21262d,stroke:#58a6ff,stroke-width:1px,color:#79c0ff
+    style REWARD fill:#21262d,stroke:#bc8cff,stroke-width:1px,color:#d2a8ff
+```
+
 
 ## 4. Core Capabilities
 
