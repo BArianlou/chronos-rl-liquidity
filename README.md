@@ -1,15 +1,15 @@
 # CHRONOS: Deep Reinforcement Learning Liquidity Engine
 
-[![License](https://img.shields.io/badge/License-MIT-green.svg)](LICENSE)
+![Status](https://img.shields.io/badge/Status-Alpha%20Validation-yellow.svg)
 ![Python](https://img.shields.io/badge/Python-3.10-blue.svg)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.x-red.svg)
-![Apache Spark](https://img.shields.io/badge/Apache%20Spark-3.5%2B-orange.svg)
-![Apache Kafka](https://img.shields.io/badge/Apache%20Kafka-Streaming-black.svg)
+![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)
+![Spark](https://img.shields.io/badge/Apache%20Spark-3.4+-E25A1C.svg)
+![Kafka](https://img.shields.io/badge/Apache%20Kafka-Distributed-black.svg)
 
 **Architect:** Bijan Arianlou  
 **Role:** Principal Systems Architect  
 **Status:** Alpha Validation (v0.9)  
-**Core Logic:** Deep Q-Network (DQN) Dynamic Liquidity Policy
+**Core Logic:** Deep Q-Network (DQN) Dynamic Liquidity Policy  
 
 ---
 
@@ -26,13 +26,15 @@ The core optimization framework optimizes risk-penalized execution returns:
 ## 2. Language & System Integration
 
 ### Core Reference Engine (Python 3.10)
-- **PyTorch / Gymnasium:** Deep Q-Network policy backbones, target network stabilization, and custom execution environments.
-- **NumPy / SciPy:** Vectorized Bellman optimality updates, state-space covariance tracking, and numeric order book transforms.
+
+- **PyTorch / Gymnasium:** Deep Q-Network policy backbones, target network stabilization, and custom execution environments.  
+- **NumPy / SciPy:** Vectorized Bellman optimality updates, state-space covariance tracking, and numeric order book transforms.  
 - Manages experience replay buffers, decay-schedules, and continuous Markov Decision Process (MDP) states.
 
 ### Enterprise Execution Layer (Distributed Streaming)
-- **Apache Spark (PySpark / Scala):** Distributed temporal feature engineering, historical microstructure aggregation, and state-space drift detection.
-- **Apache Kafka:** Fault-tolerant, low-latency market depth feeds and level-2 tick streaming for continuous state vectorization.
+
+- **Apache Spark (PySpark / Scala):** Distributed temporal feature engineering, historical microstructure aggregation, and state-space drift detection.  
+- **Apache Kafka:** Fault-tolerant, low-latency market depth feeds and level-2 tick streaming for continuous state vectorization.  
 - Orchestrates asynchronous model checkpointing and telemetry logging without blocking hot-path execution.
 
 ---
@@ -41,12 +43,11 @@ The core optimization framework optimizes risk-penalized execution returns:
 
 Chronos models the market microstructure as a continuous feedback loop. At each temporal slice, the agent samples the normalized limit order book state, processes high-frequency signals, and selects an optimal allocation tactic:
 
-1. **Ingress & Streaming:** Market depth (L2/L3) and executed tick clusters stream via Apache Kafka into Spark temporal aggregation pipelines.
-2. **State Vectorization:** Real-time extraction of normalized features: Order Book Imbalance (OBI), bid/ask spread, volatility, and volume skew.
-3. **Policy Evaluation:** PyTorch DQN selects an optimal execution action (Passive Limit, Mid-Peg, or Aggressive Fill) under volatility regime clamping.
-4. **Execution & Feedback:** Orders route to the target venue, and realized execution metrics (fill latency, slippage, and adverse selection) emit shaped reward signals back to the experience replay memory.
+- **Ingress & Streaming:** Market depth (L2/L3) and executed tick clusters stream via Apache Kafka into Spark temporal aggregation pipelines.  
+- **State Vectorization:** Real-time extraction of normalized features: Order Book Imbalance (OBI), bid/ask spread, volatility, and volume skew.  
+- **Policy Evaluation:** PyTorch DQN selects an optimal execution action (Passive Limit, Mid-Peg, or Aggressive Fill) under volatility regime clamping.  
+- **Execution & Feedback:** Orders route to the target venue, and realized execution metrics (fill latency, slippage, and adverse selection) emit shaped reward signals back to the experience replay memory.  
 
----
 ```mermaid
 graph TD
     %% Streaming Ingress
@@ -109,13 +110,14 @@ graph TD
     style REWARD fill:#21262d,stroke:#bc8cff,stroke-width:1px,color:#d2a8ff
 ```
 
+---
 
 ## 4. Core Capabilities
 
-- **Adaptive Regime-Switching Policy:** Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.
-- **Microstructure Awareness:** Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.
-- **Kinetic Reward Shaping:** Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.
-- **Distributed Drift Detection:** Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.
+- **Adaptive Regime-Switching Policy:** Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.  
+- **Microstructure Awareness:** Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.  
+- **Kinetic Reward Shaping:** Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.  
+- **Distributed Drift Detection:** Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.  
 
 ---
 
@@ -137,3 +139,4 @@ For institutional integration manifests, production distributed architectures, o
 /tests                  # Deterministic validation and invariant smoke checks
 Dockerfile              # Multi-stage container deployment specification
 requirements.txt        # Pinned dependency graph and build constraints
+```
