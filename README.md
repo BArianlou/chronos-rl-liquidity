@@ -60,7 +60,7 @@ graph TD
     end
 
     %% State Vectorization
-    STATE["<b>Normalized State Vector S_t</b><br/>Order Book Imbalance (OBI) &bull; Bid/Ask Spread &bull; Volatility Skew &bull; Volume Queues"]
+    STATE["<b>Normalized State Vector (S<sub>t</sub>)</b><br/>Order Book Imbalance (OBI) · Bid/Ask Spread · Volatility Skew · Volume Queues"]
     SPARK --> STATE
 
     %% Agent Policy Core
