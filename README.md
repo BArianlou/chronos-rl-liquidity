@@ -91,7 +91,7 @@ graph TD
     subgraph REPLAY["CLOSED-LOOP FEEDBACK & TRAINING"]
         direction TB
         METRICS["Realized Metrics: Slippage &bull; Fill Latency &bull; Adverse Selection"]
-        REWARD["<b>Kinetic Reward Shaping</b><br/>R_t = PnL_Efficiency &minus; (&lambda;&sub1; &bull; Slippage) &minus; (&lambda;&sub2; &bull; Drawdown)"]
+        REWARD["<b>Kinetic Reward Shaping</b><br/>R_t = PnL_Efficiency − (λ₁ · Slippage) − (λ₂ · Drawdown)"]
         BUFFER["Prioritized Experience Replay Buffer<br/>Bellman Optimality Gradient Update"]
 
         METRICS --> REWARD --> BUFFER
