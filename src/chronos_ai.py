@@ -15,9 +15,9 @@ State Boundaries:
     - Encapsulates network topology, optimization criteria, and loss definitions.
 
 Mathematical/Physical Invariants:
-    1. Chronos_RL_Sequencing:
+    1. Bellman Optimality Update:
        Q(s, a) <- Q(s, a) + alpha * [Reward + gamma * max_a' Q(s', a') - Q(s, a)]
-    2. Liquidity_Fragmentation_Penalty (LFP):
+    2. Liquidity Fragmentation Dampening:
        Absorbed through bounded gradient updates; network topology dampens
        volatility scalar shocks without gradient explosion.
 
@@ -79,11 +79,11 @@ class ChronosAI:
             tf.keras.Model: The assembled and compiled TensorFlow Keras model.
         """
         model = models.Sequential([
-            # [STRUCTURAL CALLOUT] Tensor Projection Envelope
-            # Enforces explicit dimensionality boundaries for the input state vector.
+            # Input Projection: Enforces explicit dimensionality boundaries
+            # for the incoming market microstructure state vector.
             layers.Input(shape=(self.state_size,)),
 
-            # [STRUCTURAL CALLOUT] Triune Fail-Safe 1: State-Space Clamping
+            # Guardrail 1 (State-Space Normalization):
             # Normalizes input feature distributions dynamically across minibatches.
             # During inference (training=False), frozen running statistics guarantee
             # deterministic policy evaluations despite high input variance.
@@ -91,7 +91,7 @@ class ChronosAI:
 
             layers.Dense(256, activation="relu"),
 
-            # [STRUCTURAL CALLOUT] Triune Fail-Safe 2: Regime Regularization
+            # Guardrail 2 (Regime Regularization):
             # Drops 20% of node connections strictly during training steps.
             # Prevents co-adaptation on localized volatility regimes while
             # remaining fully deterministic during execution inference.
@@ -99,16 +99,16 @@ class ChronosAI:
 
             layers.Dense(128, activation="relu"),
 
-            # [STRUCTURAL CALLOUT] Unbounded Utility Projection
+            # Unbounded Utility Projection:
             # Linear activation is required. Q-values denote expected cumulative
             # returns and must remain unconstrained; saturating non-linearities
             # (e.g., sigmoid, tanh) would artificially clamp value estimation.
             layers.Dense(self.action_size, activation="linear")
         ])
 
-        # [STRUCTURAL CALLOUT] Triune Fail-Safe 3: Kinetic Gradient Control
+        # Guardrail 3 (Gradient Clipping via Huber Loss):
         # Huber loss transitions smoothly between L2 norm (small tracking errors)
-        # and L1 norm (large dislocative shocks), clipping gradient magnitude
+        # and L1 norm (large dislocative shocks), bounding gradient magnitude
         # without introducing zero-gradient dead zones.
         model.compile(
             optimizer=optimizers.Adam(learning_rate=0.001),
