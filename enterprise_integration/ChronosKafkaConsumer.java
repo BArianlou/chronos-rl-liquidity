@@ -3,17 +3,16 @@
  * MODULE MANIFEST: CHRONOS ENTERPRISE INGESTION LAYER (KAFKA CONSUMER)
  * ===============================================================================
  * System Purpose:
- *     Serves as the high-throughput kinetic data gateway for the CHRONOS engine
- *     (Logic Map Node 1: Data Fusion). Subscribes to live market telemetry streams,
- *     extracts raw tick records, and buffers state-space payloads for downstream
- *     distributed windowing via the PySpark ETL pipeline.
+ *     Serves as the high-throughput streaming ingestion layer for the CHRONOS engine.
+ *     Subscribes to live market data streams, extracts raw tick records, and buffers
+ *     state payloads for downstream distributed windowing via the PySpark ETL pipeline.
  *
  * State Boundaries:
  *     - Strictly confined to network I/O, payload extraction, key validation,
  *       and memory buffering.
- *     - Decoupled from mathematical feature engineering (rolling volatility, depth)
- *       handled by PySpark, and reinforcement learning policy optimization
- *       governed by the Python-based RLAgent.
+ *     - Decoupled from mathematical feature engineering (rolling volatility, order-book depth)
+ *       handled by PySpark, and reinforcement learning policy optimization governed
+ *       by the Python-based RLAgent.
  *
  * Mathematical/Physical Invariants:
  *     1. Temporal Causality:
@@ -21,16 +20,15 @@
  *        partition offset sequence:
  *        Offset(t + 1) > Offset(t) for Partition(Asset_i)
  *        to prevent look-ahead bias and non-causal leakage in downstream state tensors.
- *     2. DATA_SUPREMACY Directive:
+ *     2. Zero-Loss Ingestion Guarantee:
  *        Zero silent data drops. All incoming telemetry must either be successfully
- *        committed to the cross-stack buffer or explicitly quarantined via forensic
- *        telemetry logs.
+ *        committed to the cross-stack buffer or explicitly captured in forensic logs.
  *
  * Design Rationale:
- *     Python's Global Interpreter Lock (GIL) introduces severe kinetic drag and
- *     I/O bottlenecking when processing high-frequency streaming events. This
- *     Java/Spring component leverages native JVM multi-threading, non-blocking I/O,
- *     and optimized Kafka consumer groups to absorb institutional market velocity.
+ *     Python's Global Interpreter Lock (GIL) introduces concurrency bottlenecks
+ *     when processing high-frequency streaming events at scale. This Java/Spring
+ *     component leverages native JVM multi-threading, non-blocking I/O, and
+ *     optimized Kafka consumer groups to absorb institutional market data throughput.
  * ===============================================================================
  */
 
@@ -49,9 +47,9 @@ import org.springframework.stereotype.Component;
  * <p>Listens on partitioned market data topics, validates stream payload integrity,
  * and routes continuous tick events to the staging buffer for distributed PySpark consumption.</p>
  */
-// [STRUCTURAL CALLOUT] Spring IoC Integration
-// Registers the consumer as an unmanaged singleton bean within the Spring application
-// context, guaranteeing deterministic lifecycle hooks and thread-safe dependency injection.
+// Spring IoC Integration:
+// Registers the consumer as a managed singleton bean within the Spring application
+// context, providing deterministic lifecycle management and thread-safe dependency injection.
 @Component
 public class ChronosKafkaConsumer {
 
@@ -78,18 +76,18 @@ public class ChronosKafkaConsumer {
      * <p>Acts as the event-driven entry point for raw market feeds. Enforces key presence,
      * logs diagnostic metadata, and safely delegates raw payloads to the buffer layer.</p>
      *
-     * <p><b>Mathematical/Physical Invariants:</b></p>
+     * <p><b>Invariants:</b></p>
      * <ul>
      *   <li>Offset Monotonicity: Offsets increase monotonically per topic-partition.</li>
-     *   <li>Fail-Safe Partition Continuity: Processing errors are trapped and logged,
-     *       preventing partition consumption halts while maintaining data provenance.</li>
+     *   <li>Partition Continuity: Processing errors are trapped and logged,
+     *       preventing consumer loop termination while maintaining data provenance.</li>
      * </ul>
      *
      * @param record the incoming {@link ConsumerRecord} containing the asset identifier key
      *               and raw JSON/CSV telemetry payload.
      */
-    // [STRUCTURAL CALLOUT] High-Frequency Event Binding
-    // Binds the method to the production tick topic. The 'chronos-rl-group' consumer group
+    // Stream Topic & Consumer Group Binding:
+    // Binds consumer execution to the production tick topic. The 'chronos-rl-group'
     // coordinates partition assignments across horizontal JVM replicas, eliminating duplicate
     // state ingestion while maintaining partition affinity.
     @KafkaListener(topics = "chronos.market.ticks.v1", groupId = "chronos-rl-group")
@@ -109,16 +107,16 @@ public class ChronosKafkaConsumer {
             logger.debug("Ingesting tick for Asset: {} at Partition: {}, Offset: {}",
                     assetId, record.partition(), record.offset());
 
-            // [STRUCTURAL CALLOUT] Cross-Stack Data Routing
-            // Kinetic bridge transferring high-velocity JVM stream records into staging
-            // memory buffers accessible by PySpark batch and micro-batch operations.
+            // Cross-Runtime Data Staging:
+            // Transfers high-velocity JVM stream records into staging memory buffers
+            // accessible by PySpark batch and micro-batch operations.
             this.bufferService.batchTelemetry(assetId, telemetryPayload);
 
         } catch (final Exception ex) {
-            // [STRUCTURAL CALLOUT] Anti-Drift Quarantine Protocol
+            // Fault Tolerance & Partition Continuity:
             // Traps downstream serialization or memory exceptions to prevent consumer thread termination.
-            // Preserves Kafka consumer poll loop continuity while emitting forensic diagnostic metadata.
-            logger.error("KINETIC PIPELINE ERROR: Failed to process market tick. Quarantining record at Topic: {}, Partition: {}, Offset: {}",
+            // Preserves Kafka consumer poll loop continuity while emitting diagnostic metadata.
+            logger.error("PIPELINE INGESTION ERROR: Failed to process market tick. Quarantining record at Topic: {}, Partition: {}, Offset: {}",
                     record.topic(), record.partition(), record.offset(), ex);
         }
     }
