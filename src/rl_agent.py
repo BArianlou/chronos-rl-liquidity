@@ -1,50 +1,5 @@
-"""
-===============================================================================
-MODULE MANIFEST: CHRONOS AUTONOMIC AGENT (RL EXECUTION CORE)
-===============================================================================
-System Purpose:
-    Serves as the sovereign execution controller for the CHRONOS engine.
-    Orchestrates autonomic feedback loops, governing policy exploitation,
-    experience storage, and experience replay optimization. Serves as the
-    operational bridge between the continuous market environment and the
-    underlying Deep Q-Network (DQN) policy approximator.
-
-State Boundaries:
-    - Governs episodic experience ingestion, ring-buffer replay memory, and
-      stochastic action selection.
-    - Encapsulates epsilon-decay exploration schedules and TD-error target updates.
-    - Strictly delegates computational graph definitions, backpropagation updates,
-      and loss compilation to the ChronosAI backbone.
-
-Mathematical/Physical Invariants:
-    1. Chronos_RL_Sequencing:
-       Q(s, a) <- Q(s, a) + alpha * [Reward + gamma * max_a' Q(s', a') - Q(s, a)]
-    2. Monotonic Entropy Decay:
-       Exploration rate epsilon decays strictly monotonically:
-       epsilon_(t+1) = max(epsilon_min, epsilon_t * epsilon_decay)
-       driving transitions from high-entropy exploration to deterministic policy execution.
-
-Design Rationale:
-    A uniform random-sampling Experience Replay buffer breaks temporal autocorrelation
-    in sequential financial time series, mitigating catastrophic forgetting.
-    Mini-batch tensor operations parallelize target estimation, minimizing kinetic
-    execution bottlenecks during neural weight updates.
-===============================================================================
-"""
-
-from collections import deque
-import random
-from typing import Any, Deque, List, Tuple, Union
-import numpy as np
-import tensorflow as tf
-
-from chronos_ai import ChronosAI
-
-
 class RLAgent:
-    """Autonomic Deep Q-Network (DQN) reinforcement learning agent.
-
-    Coordinates experience replay ingestion, exploration-exploitation trade-offs,
+    """Coordinates experience replay ingestion, exploration-exploitation trade-offs,
     and mini-batch gradient updates for optimal order execution sequencing.
 
     Attributes:
@@ -69,9 +24,9 @@ class RLAgent:
         self.state_size: int = state_size
         self.action_size: int = action_size
 
-        # [STRUCTURAL CALLOUT] Finite Memory Horizon
-        # Physical Constraint: Caps replay memory at 2000 transitions.
-        # Operates as a FIFO queue to prevent training on stale microstructure regimes.
+        # Replay Buffer Management:
+        # Caps replay memory at 2000 transitions (FIFO queue) to bound memory
+        # overhead and prevent policy degradation from stale historical regimes.
         self.memory: Deque[Tuple[np.ndarray, int, float, np.ndarray, bool]] = deque(maxlen=2000)
 
         self.gamma: float = 0.95
@@ -117,9 +72,8 @@ class RLAgent:
         if np.random.rand() <= self.epsilon:
             return random.randrange(self.action_size)
 
-        # [STRUCTURAL CALLOUT] Dimension-Safe Tensor Reshaping
-        # Dynamic projection guarantees a 2D batch shape (1, state_size)
-        # without mutating source array references.
+        # Input Tensor Formatting:
+        # Guarantees a 2D batch dimension (1, state_size) for model inference.
         state_tensor: np.ndarray = (
             np.reshape(state, (1, self.state_size)) if state.ndim == 1 else state
         )
@@ -147,9 +101,9 @@ class RLAgent:
             self.memory, batch_size
         )
 
-        # [STRUCTURAL CALLOUT] Triune Vectorization & Kinetic Speedup
-        # Stacks sampled transition tuples into contiguous memory buffers to
-        # leverage SIMD/GPU parallelization across inference passes.
+        # Contiguous Batch Memory Stacking:
+        # Stacks transition tuples into contiguous arrays for efficient vectorized
+        # mini-batch inference across available compute accelerators.
         states: np.ndarray = np.vstack([x[0] for x in batch])
         actions: np.ndarray = np.array([x[1] for x in batch], dtype=np.int32)
         rewards: np.ndarray = np.array([x[2] for x in batch], dtype=np.float32)
@@ -160,8 +114,8 @@ class RLAgent:
         target_values: np.ndarray = self.model.predict(states, verbose=0)
         next_q_values: np.ndarray = self.model.predict(next_states, verbose=0)
 
-        # [STRUCTURAL CALLOUT] Vectorized Bellman Target Update
-        # Direct implementation of Chronos_RL_Sequencing.
+        # Bellman Optimality Target Generation:
+        # Computes 1-step temporal difference targets using the Bellman equation.
         for i in range(batch_size):
             if dones[i]:
                 target_values[i, actions[i]] = rewards[i]
@@ -175,7 +129,7 @@ class RLAgent:
             states, target_values, batch_size=batch_size, epochs=1, verbose=0
         )
 
-        # [STRUCTURAL CALLOUT] Triune Entropy Decay
-        # Enforces deterministic policy convergence by decaying exploration entropy.
+        # Exploration Schedule Decay (Epsilon Annealing):
+        # Anneals exploration rate toward lower threshold to stabilize policy convergence.
         if self.epsilon > self.epsilon_min:
             self.epsilon *= self.epsilon_decay
