@@ -43,7 +43,11 @@ Where:
 * **Apache Kafka (Java 17 / JVM):** High-throughput Spring Kafka consumer (`ChronosKafkaConsumer.java`) handling non-blocking network I/O, partition-level event ordering, and cross-runtime memory staging.
 * **Kubernetes & Cloud Infrastructure:** Production 3-replica Kubernetes deployment manifest (`chronos-liquidity-engine`) with cgroup memory/CPU bounds, liveness/readiness probes, and inter-service CoreDNS broker bindings.
 * **Automated Dual-Stack CI/CD:** Ephemeral multi-runtime validation workflows executing strict AST syntax linting (Flake8), unit assertions (pytest), OpenJDK 17 ABI parity, and 2-episode end-to-end integration smoke testing.
-* 1. **Ingress & Distributed Streaming:** Market tick streams ingest via Apache Kafka into PySpark partitioned rolling-window transformation pipelines.
+
+---
+
+## 3. Agent-Environment Interaction Loop
+1. **Ingress & Distributed Streaming:** Market tick streams ingest via Apache Kafka into PySpark partitioned rolling-window transformation pipelines.
 2. **State Vectorization & Standardization:** Real-time extraction and Z-score normalization of core microstructure features: Price, Rolling Volatility, Order Book Liquidity Depth, and Volume Imbalance / Inventory Position.
 3. **DQN Policy Evaluation:** The TensorFlow/Keras DQN evaluates the observation state vector and selects an optimal discrete execution primitive under inventory exposure constraints.
 4. **Execution & Bellman Feedback:** The environment computes realized mark-to-market PnL net of depth-dependent slippage penalties and appends transition tuples $(s, a, r, s', \text{done})$ to the replay buffer for mini-batch backpropagation.
@@ -79,18 +83,3 @@ chronos-rl-liquidity/
 │   └── test_environment_bounds.py   # State-space shape and boundary assertions
 ├── requirements.txt                  # Pinned Python dependency envelope
 └── README.md                         # Architecture manifest and documentation
-
----
-
-### Step to Finalize
-1. Open **`README.md`** on GitHub, click the pencil icon, and replace the contents with the block above.
-2. Commit directly to `main`.
-3. The badges at the top will render live with green status shields linked to your passing workflows.
-
-
-
-* 
-
----
-
-## 3. Agent-Environment Interaction Loop
