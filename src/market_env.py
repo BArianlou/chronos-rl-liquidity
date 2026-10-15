@@ -5,19 +5,19 @@ MODULE MANIFEST: CHRONOS MARKET ENVIRONMENT (GYMNASIUM)
 System Purpose:
     Serves as the deterministic simulation engine for the CHRONOS reinforcement
     learning agent. Implements a high-fidelity Markov Decision Process (MDP)
-    modeling asymmetric market impact, kinetic slippage friction, and liquidity
+    modeling asymmetric market impact, slippage friction, and liquidity
     fragmentation encountered in institutional execution sequencing.
 
 State Boundaries:
-    - Encapsulates physical state evolution: price generation, liquidity depth
+    - Encapsulates state evolution: price generation, liquidity depth
       degradation, and order impact dynamics.
-    - Emits 4D observation tensors, scalar rewards, and termination flags to the
-      DQN policy graph.
+    - Emits 4D observation tensors, scalar rewards, and termination/truncation
+      flags to the DQN policy graph.
     - Strictly decoupled from policy optimization, Q-value estimation, and order
       routing infrastructures.
 
 Mathematical/Physical Invariants:
-    1. Liquidity_Fragmentation_Penalty (LFP):
+    1. Liquidity Fragmentation Penalty (LFP):
        Execution cost is inversely proportional to available book depth:
        Impact_t = (eta / Depth_t) * Price_t
     2. Geometric Price Bounds:
@@ -25,15 +25,14 @@ Mathematical/Physical Invariants:
        mathematical breakdown in return and variance calculations.
     3. Mark-to-Market (MtM) Conservation:
        Total reward balances unrealized portfolio inventory delta against
-       incurred kinetic execution drag:
+       incurred execution slippage:
        R_t = (Pos_t * Delta_P_t) - Execution_Cost_t
 
 Design Rationale:
     Standard academic execution environments assume infinite liquidity at the
-    mid-price. This custom environment enforces physical market penalties:
+    mid-price. This environment enforces realistic microstructure penalties,
     forcing the agent to resolve the fundamental trade-off between execution
-    velocity (capturing price alpha) and market impact (friction decay),
-    strictly upholding the Triune DATA_SUPREMACY mandate.
+    velocity (capturing price alpha) and market impact (slippage decay).
 ===============================================================================
 """
 
@@ -64,15 +63,13 @@ class ChronosMarketEnv(gym.Env):
         """Initializes the market environment spaces and configuration parameters."""
         super().__init__()
 
-        # [STRUCTURAL CALLOUT] Deterministic Inventory Constraint
-        # Physical Constraint: Caps maximum allowable exposure to prevent the
-        # agent from discovering infinite-leverage exploits during early exploration.
+        # Inventory Exposure Limit: Caps maximum allowable position size to prevent
+        # unconstrained leverage exploits during early policy exploration.
         self.max_position: float = 5.0
 
-        # [STRUCTURAL CALLOUT] State-Space Tensor Envelope
-        # Operational envelope for the 4D state vector:
+        # Observation Space Bounds:
         # [Price (P >= 0.01), Volatility (V >= 0.0), Depth (D >= 0.01), Position (0.0 <= Pos <= Max)]
-        # Rejects physically impossible or degenerate market states.
+        # Enforces non-degenerate market state boundaries.
         self.observation_space: spaces.Box = spaces.Box(
             low=np.array([0.01, 0.0, 0.01, 0.0], dtype=np.float32),
             high=np.array([np.inf, np.inf, np.inf, self.max_position], dtype=np.float32),
@@ -95,7 +92,7 @@ class ChronosMarketEnv(gym.Env):
         """Resets the environment state to canonical baseline anchors.
 
         Args:
-            seed: PRNG seed for reproducible stochasticity across episodes.
+            seed: PRNG seed initializing `self.np_random` for reproducible trajectories.
             options: Supplementary configuration flags (reserved for interface parity).
 
         Returns:
@@ -113,8 +110,9 @@ class ChronosMarketEnv(gym.Env):
     ) -> Tuple[np.ndarray, float, bool, bool, Dict[str, Any]]:
         """Advances the market simulation by one discrete temporal increment.
 
-        Generates stochastic price motion, applies liquidity impact penalties
-        contingent on order direction and prevailing depth, and computes MtM rewards.
+        Generates stochastic price motion via the environment-scoped PRNG, applies
+        liquidity impact penalties contingent on order direction and prevailing depth,
+        and computes mark-to-market rewards.
 
         Mathematical Invariants:
             - Price Diffusion: P_(t+1) = max(0.01, P_t + epsilon), where epsilon ~ N(0, (P_t * Vol_t)^2)
@@ -127,25 +125,25 @@ class ChronosMarketEnv(gym.Env):
         Returns:
             Tuple containing:
                 - next_state (np.ndarray): Updated 4D state vector.
-                - reward (float): Mark-to-market PnL net of kinetic execution costs.
-                - terminated (bool): Flag indicating episodic terminal boundary.
-                - truncated (bool): Time-horizon truncation flag (fixed at False).
+                - reward (float): Mark-to-market PnL net of execution slippage costs.
+                - terminated (bool): True if asset price hits absorbing lower bound (0.01).
+                - truncated (bool): True if episode reaches the 200-step time horizon.
                 - info (dict): Diagnostic metadata dictionary.
         """
         price, vol, depth, pos = self.state
         self.steps += 1
 
-        # [STRUCTURAL CALLOUT] Geometric Boundary Enforcement
-        # Clamps diffusion at 0.01 to prevent non-positive asset prices,
-        # preserving mathematical validity across gradient updates.
-        price_change: float = float(np.random.normal(0, price * vol))
+        # Scoped PRNG Diffusion & Lower-Bound Price Clamp:
+        # Uses Gymnasium's seeded `self.np_random` generator for deterministic replay
+        # and clamps price at 0.01 to preserve numerical stability.
+        price_change: float = float(self.np_random.normal(0.0, price * vol))
         new_price: float = max(0.01, price + price_change)
 
         execution_cost: float = 0.0
 
-        # [STRUCTURAL CALLOUT] Kinetic Friction & LFP Application
-        # Execution cost is inversely proportional to available order book depth.
-        # Penalizes aggressive liquidity consumption in thin books.
+        # Order Book Impact & Slippage Calculation:
+        # Execution cost is inversely proportional to available order book depth,
+        # penalizing aggressive liquidity consumption in thin books.
         if action == 1 and pos < self.max_position:  # Buy
             impact = (0.01 / depth) * price
             execution_cost = impact
@@ -155,15 +153,18 @@ class ChronosMarketEnv(gym.Env):
             execution_cost = impact
             pos -= 1.0
 
-        # [STRUCTURAL CALLOUT] Mark-to-Market (MtM) Reward Logic
-        # Balances mark-to-market valuation change of held inventory against
-        # instantaneous slippage and liquidity friction.
+        # Mark-to-Market (MtM) Net Reward:
+        # Balances unrealized valuation change of held inventory against
+        # instantaneous slippage and market impact costs.
         mtm_pnl: float = pos * (new_price - price)
         reward: float = float(mtm_pnl - execution_cost)
 
         self.state = np.array([new_price, vol, depth, pos], dtype=np.float32)
 
-        # Temporal Horizon Clamp: Fixed-step episode termination to prevent unbounded drift.
-        terminated: bool = self.steps >= 200
+        # Gymnasium v0.26+ Terminal vs. Truncation Semantics:
+        # - `terminated`: True only if asset reaches absorbing distress boundary (P <= 0.01).
+        # - `truncated`: True when the fixed 200-step episodic horizon is reached.
+        terminated: bool = bool(new_price <= 0.01)
+        truncated: bool = self.steps >= 200
 
-        return self.state, reward, terminated, False, {}
+        return self.state, reward, terminated, truncated, {}
