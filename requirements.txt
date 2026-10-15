@@ -1,69 +1,47 @@
 # ===============================================================================
-# MODULE MANIFEST: CHRONOS DETERMINISTIC DEPENDENCY GRAPH (REQUIREMENTS)
+# MODULE MANIFEST: CHRONOS DEPENDENCY SPECIFICATION (REQUIREMENTS)
 # ===============================================================================
 # System Purpose:
-#     Serves as the foundational mathematical and computational registry for the
-#     CHRONOS engine. Defines the strict library envelopes required to instantiate
-#     the Deep Q-Network, the continuous Markov Decision Process (MDP) environment,
-#     the distributed ETL feature engine, and vectorized tensor updates.
+#     Defines the deterministic Python dependency envelope for the CHRONOS engine.
+#     Ensures stable graph compilation, reproducible RL training, and consistent
+#     CI/CD behavior across local development, GitHub Actions, and containerized
+#     Kubernetes deployments.
 #
-# State Boundaries:
-#     - Strictly manages the Python execution environment and ABI boundaries.
-#     - Prevents upstream package mutations and semantic version drift from
-#       corrupting tensor geometries, gradient stability, or pipeline reproducibility.
+# Execution Boundaries:
+#     - Locks core numerical, RL, and MDP libraries to verified version envelopes.
+#     - Prevents breaking API changes from mutating tensor shapes or gradient flow.
+#     - Maintains ABI compatibility across TensorFlow, Gymnasium, and PySpark runtimes.
 #
-# Mathematical/Physical Invariants:
-#     1. SESSION_CONTEXT_FIDELITY:
-#        Enforces reproducible computational baselines across local sandboxes,
-#        ephemeral CI/CD runners, and containerized Kubernetes clusters.
-#     2. Compatible Release Bounding (~= / <):
-#        Enforces verified API feature floors while establishing upper-bound
-#        ceilings against breaking major runtime mutations.
+# Deterministic Invariants:
+#     1. Reproducible Execution Context:
+#        Guarantees identical computational behavior across all runner environments.
+#     2. Version Ceiling Protection:
+#        Uses bounded version constraints (>=, <) to avoid breaking API regressions.
 #
 # Design Rationale:
-#     Unconstrained dependencies in deep reinforcement learning pipelines introduce
-#     non-deterministic execution paths, driver conflicts, and silent mathematical
-#     deviations. This manifest establishes a deterministic dependency lock, ensuring
-#     identical graph compilation and mathematical convergence across all targets.
+#     Reinforcement learning pipelines are sensitive to library version drift.
+#     This manifest enforces a deterministic execution baseline so that training loops,
+#     Bellman target updates, and environment transitions behave consistently.
 # ===============================================================================
 
-# [STRUCTURAL CALLOUT] Core Tensor Geometry & Vectorization
-# Architectural Mandate: Provides foundational C-optimized ndarrays required
-# for vectorized Bellman target updates and dimension-safe state projections in
-# RLAgent. Strictly bound to prevent legacy array coercion side effects.
+# Core Numerical Acceleration (Vectorized arrays, Bellman targets, batch stacking)
 numpy>=1.24.0,<2.0.0
 
-# [STRUCTURAL CALLOUT] Neural Topology & Gradient Control
-# Instantiates the computational graph for the ChronosAI backbone. Enforces
-# numerical stability for Huber loss execution (Kinetic Gradient Control) and
-# Adam optimization across high-frequency mini-batch updates.
+# Neural Network Backbone (Deep Q-Network, Huber loss regression, Adam optimizer)
 tensorflow>=2.15.0,<2.17.0
 
-# [STRUCTURAL CALLOUT] MDP Simulation Boundaries
-# Replaces deprecated gym APIs. Gymnasium provides the modern spaces.Box and
-# spaces.Discrete specifications that enforce position caps and bounded geometric
-# price walks within ChronosMarketEnv.
+# MDP Simulation Framework (Gymnasium continuous observation and discrete action spaces)
 gymnasium>=0.29.1,<1.1.0
 
-# [STRUCTURAL CALLOUT] Distributed Data Fusion & Telemetry Windowing
-# Architectural Mandate: Powers the distributed feature pipeline (ChronosSparkPipeline).
-# Executes wide partition transformations, rolling kinetic aggregations, and
-# distributed StandardScaler fitting across institutional tick archives.
+# Distributed Data Processing (PySpark windowing, distributed rolling aggregations)
 pyspark>=3.5.0,<3.6.0
 
-# [STRUCTURAL CALLOUT] Time-Series Alignment & Anti-Drift Clamping
-# Supports local data transformation and tabular feature alignment. Guarantees
-# deterministic handling of missing values via the Anti-Drift Truncation Lock (dropna).
+# Tabular Feature Transformation (Schema alignment, time-series feature frames)
 pandas>=2.1.0,<3.0.0
 
-# [STRUCTURAL CALLOUT] Glass Box Observability & Verification
-# Translates high-dimensional state dynamics into observable telemetry for
-# SCIENTIFIC_VALIDATION audits, rendering convergence curves, entropy decay,
-# and friction profiles without mutating running state.
+# Observability & Metrics (Reward curves, policy convergence visualizations)
 matplotlib>=3.8.0,<4.0.0
 
-# [STRUCTURAL CALLOUT] Automated Verification Gate
-# Foundational harness for running deterministic pre-flight checks and unit
-# assertions in CI/CD pipelines and containerized staging pods.
+# CI/CD Static Analysis & Testing (Unit tests, Flake8 syntax and complexity gates)
 pytest>=7.4.0,<9.0.0
 flake8>=6.1.0,<8.0.0
