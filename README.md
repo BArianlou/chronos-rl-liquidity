@@ -1,142 +1,49 @@
-# CHRONOS: Deep Reinforcement Learning Liquidity Engine
+# CHRONOS: Deep Reinforcement Learning Liquidity & Execution Engine
 
-![Status](https://img.shields.io/badge/Status-Alpha%20Validation-yellow.svg)
-![Python](https://img.shields.io/badge/Python-3.10-blue.svg)
-![PyTorch](https://img.shields.io/badge/PyTorch-2.0+-ee4c2c.svg)
-![Spark](https://img.shields.io/badge/Apache%20Spark-3.4+-E25A1C.svg)
-![Kafka](https://img.shields.io/badge/Apache%20Kafka-Distributed-black.svg)
+[![Enterprise MLOps & Integrity Pipeline](https://github.com/BArianlou/chronos-rl-liquidity/actions/workflows/enterprise-mlops.yml/badge.svg)](https://github.com/BArianlou/chronos-rl-liquidity/actions/workflows/enterprise-mlops.yml)
+[![Chronos Intelligence Audit](https://github.com/BArianlou/chronos-rl-liquidity/actions/workflows/chronos_ci.yml/badge.svg)](https://github.com/BArianlou/chronos-rl-liquidity/actions/workflows/chronos_ci.yml)
+[![Python 3.10](https://img.shields.io/badge/Python-3.10-blue.svg)](https://www.python.org/downloads/release/python-3100/)
+[![TensorFlow](https://img.shields.io/badge/TensorFlow-2.15%2B-orange.svg)](https://www.tensorflow.org/)
+[![Java 17](https://img.shields.io/badge/Java-17%20LTS-orange.svg)](https://aws.amazon.com/corretto/)
+[![Spark 3.5](https://img.shields.io/badge/Apache%20Spark-3.5-red.svg)](https://spark.apache.org/)
+[![Kafka](https://img.shields.io/badge/Apache%20Kafka-Distributed%20Bus-black.svg)](https://kafka.apache.org/)
+[![Kubernetes](https://img.shields.io/badge/Kubernetes-Cloud%20Native-326ce5.svg)](https://kubernetes.io/)
 
-**Architect:** Bijan Arianlou  
-**Role:** Principal Systems Architect  
-**Status:** Alpha Validation (v0.9)  
-**Core Logic:** Deep Q-Network (DQN) Dynamic Liquidity Policy  
+**Architect:** Bijan Arianlou, MSEE  
+**Role:** Principal Solutions & Systems Architect  
+**Status:** Production Reference Architecture (v1.0)  
+**Core Logic:** Deep Q-Network (DQN) Dynamic Execution & Distributed Streaming Pipeline  
 
 ---
 
 ## 1. Architectural Intent
 
-Chronos is an autonomous execution agent engineered to optimize liquidity entry and exit points across fragmented financial venues using Deep Reinforcement Learning (DRL). Moving beyond static algorithmic trading heuristics, Chronos implements a dynamic policy network that continuously adjusts execution vectors under non-stationary market regimes, maximizing risk-adjusted return (Sharpe Ratio) while suppressing market-impact slippage and kinetic drag.
+**CHRONOS** is an autonomous execution and distributed streaming architecture engineered to optimize liquidity entry and exit sequencing across fragmented financial venues using Deep Reinforcement Learning (DRL). Moving beyond static algorithmic trading heuristics (e.g., rigid TWAP/VWAP), CHRONOS implements a regularized Deep Q-Network policy coupled with a distributed **Apache Spark / Apache Kafka** data pipeline that continuously adjusts execution actions under non-stationary market regimes, maximizing risk-adjusted return while penalizing market-impact slippage and unhedged inventory risk.
 
 The core optimization framework optimizes risk-penalized execution returns:
 
-> **Reward** = PnL_Efficiency − (λ₁ · Slippage_Penalty) − (λ₂ · Max_Drawdown_Penalty)
+$$\text{Reward}_t = \Delta \text{PnL}_t - (\lambda_1 \cdot \text{Slippage}_t) - (\lambda_2 \cdot \text{InventoryRisk}_t)$$
+
+Where:
+* $\Delta \text{PnL}_t$: Mark-to-market performance of filled order volume.
+* $\lambda_1$: Penalty scalar balancing market impact and aggressive fill fees.
+* $\lambda_2$: Risk aversion parameter penalizing unhedged inventory duration.
 
 ---
 
-## 2. Language & System Integration
+## 2. Language & Enterprise System Integration
 
-### Core Reference Engine (Python 3.10)
+### Core RL & Simulation Engine (Python 3.10)
+* **TensorFlow / Keras & Gymnasium:** Deep Q-Network (DQN) policy approximator (`ChronosAI`) featuring BatchNormalization, Dropout regularization, and Huber loss gradient clipping, paired with a custom Gymnasium market microstructure environment (`ChronosMarketEnv`).
+* **NumPy / SciPy:** Contiguous mini-batch tensor stacking, Bellman optimality target updates, and stochastic price/liquidity diffusion modeling.
+* **Experience Replay Controller (`RLAgent`):** Manages FIFO ring-buffer replay memory, epsilon-annealing exploration schedules, and online mini-batch gradient updates.
 
-- **PyTorch / Gymnasium:** Deep Q-Network policy backbones, target network stabilization, and custom execution environments.  
-- **NumPy / SciPy:** Vectorized Bellman optimality updates, state-space covariance tracking, and numeric order book transforms.  
-- Manages experience replay buffers, decay-schedules, and continuous Markov Decision Process (MDP) states.
-
-### Enterprise Execution Layer (Distributed Streaming)
-
-- **Apache Spark (PySpark / Scala):** Distributed temporal feature engineering, historical microstructure aggregation, and state-space drift detection.  
-- **Apache Kafka:** Fault-tolerant, low-latency market depth feeds and level-2 tick streaming for continuous state vectorization.  
-- Orchestrates asynchronous model checkpointing and telemetry logging without blocking hot-path execution.
-
----
-
-## 3. Agent-Environment Interaction
-
-Chronos models the market microstructure as a continuous feedback loop. At each temporal slice, the agent samples the normalized limit order book state, processes high-frequency signals, and selects an optimal allocation tactic:
-
-- **Ingress & Streaming:** Market depth (L2/L3) and executed tick clusters stream via Apache Kafka into Spark temporal aggregation pipelines.  
-- **State Vectorization:** Real-time extraction of normalized features: Order Book Imbalance (OBI), bid/ask spread, volatility, and volume skew.  
-- **Policy Evaluation:** PyTorch DQN selects an optimal execution action (Passive Limit, Mid-Peg, or Aggressive Fill) under volatility regime clamping.  
-- **Execution & Feedback:** Orders route to the target venue, and realized execution metrics (fill latency, slippage, and adverse selection) emit shaped reward signals back to the experience replay memory.  
-
-```mermaid
-graph TD
-    %% Streaming Ingress
-    subgraph INGRESS["MARKET DATA INGRESS & STREAMING"]
-        direction TB
-        MKT["Market Feeds: L2/L3 Depth & Executed Ticks"]
-        KAFKA["Apache Kafka: Low-Latency Streaming Cluster"]
-        SPARK["PySpark / Scala: Temporal Feature Aggregation & Drift Detection"]
-        MKT --> KAFKA --> SPARK
-    end
-
-    %% State Vectorization
-    STATE["<b>Normalized State Vector (S<sub>t</sub>)</b><br/>Order Book Imbalance (OBI) · Bid/Ask Spread · Volatility Skew · Volume Queues"]
-    SPARK --> STATE
-
-    %% Agent Policy Core
-    subgraph DRL["CHRONOS AUTONOMIC DRL AGENT"]
-        direction TB
-        DQN["PyTorch DQN Policy Network<br/>Q(s, a; &theta;) Backbone Clamping"]
-        POLICY{"Regime-Switching<br/>Action Selection"}
-        
-        ACT_PASS["Passive Limit (Maker)"]
-        ACT_PEG["Mid-Peg Allocation"]
-        ACT_AGG["Aggressive Fill (Taker)"]
-
-        DQN --> POLICY
-        POLICY --> ACT_PASS
-        POLICY --> ACT_PEG
-        POLICY --> ACT_AGG
-    end
-
-    STATE --> DQN
-
-    %% Venue Execution
-    VENUE["<b>Execution Venue / Matching Engine</b><br/>Order Routing & Fill Telemetry"]
-    ACT_PASS --> VENUE
-    ACT_PEG --> VENUE
-    ACT_AGG --> VENUE
-
-    %% Closed-Loop Feedback
-    subgraph REPLAY["CLOSED-LOOP FEEDBACK & TRAINING"]
-        direction TB
-        METRICS["Realized Metrics: Slippage &bull; Fill Latency &bull; Adverse Selection"]
-        REWARD["<b>Kinetic Reward Shaping</b><br/>R_t = PnL_Efficiency − (λ₁ · Slippage) − (λ₂ · Drawdown)"]
-        BUFFER["Prioritized Experience Replay Buffer<br/>Bellman Optimality Gradient Update"]
-
-        METRICS --> REWARD --> BUFFER
-    end
-
-    VENUE --> METRICS
-    BUFFER -.->|"Asynchronous Weight Updates & Target Sync"| DQN
-
-    %% Styling
-    style INGRESS fill:#161b22,stroke:#f0883e,stroke-width:1px,color:#ffa657
-    style DRL fill:#0d1117,stroke:#58a6ff,stroke-width:2px,color:#79c0ff
-    style REPLAY fill:#161b22,stroke:#bc8cff,stroke-width:1px,color:#d2a8ff
-    style STATE fill:#161b22,stroke:#30363d,stroke-width:1px,color:#c9d1d9
-    style VENUE fill:#161b22,stroke:#238636,stroke-width:1px,color:#3fb950
-    style POLICY fill:#21262d,stroke:#58a6ff,stroke-width:1px,color:#79c0ff
-    style REWARD fill:#21262d,stroke:#bc8cff,stroke-width:1px,color:#d2a8ff
-```
+### Enterprise Data Bus & Cloud-Native Infrastructure
+* **Apache Spark (PySpark 3.5):** Distributed temporal windowing (`ChronosSparkPipeline`), rolling 100-tick volatility/depth/momentum extraction, VectorAssembler tensor packing, and distributed StandardScaler Z-score normalization.
+* **Apache Kafka (Java 17 / JVM):** High-throughput Spring Kafka consumer (`ChronosKafkaConsumer.java`) handling non-blocking network I/O, partition-level event ordering, and cross-runtime memory staging.
+* **Kubernetes & Cloud Infrastructure:** Production 3-replica Kubernetes deployment manifest (`chronos-liquidity-engine`) with cgroup memory/CPU bounds, liveness/readiness probes, and inter-service CoreDNS broker bindings.
+* **Automated Dual-Stack CI/CD:** Ephemeral multi-runtime validation workflows executing strict AST syntax linting (Flake8), unit assertions (pytest), OpenJDK 17 ABI parity, and 2-episode end-to-end integration smoke testing.
 
 ---
 
-## 4. Core Capabilities
-
-- **Adaptive Regime-Switching Policy:** Uses Deep Q-Networks to discover latent state transitions and execute asymmetric routing between volatile and consolidated market states.  
-- **Microstructure Awareness:** Evaluates real-time Order Book Imbalance (OBI), spread compression dynamics, and bid/ask volume queues.  
-- **Kinetic Reward Shaping:** Mathematically penalizes transient drawdowns, adverse selection, and inventory risk holding costs.  
-- **Distributed Drift Detection:** Continuously monitors feature distribution divergence across streaming Kafka pipelines to flag execution drift.  
-
----
-
-## 5. Implementation Notice
-
-This repository contains the **Reference Architecture and Environment Wrappers**. Production deployment mandates connection to low-latency matching engine gateways, specialized tick-data infrastructure, and hardware-accelerated state storage.
-
-For institutional integration manifests, production distributed architectures, or proprietary backtest performance documentation:  
-**Contact the Architect.**
-
----
-
-## 6. Repository Structure
-
-```text
-/chronos-engine          # PyTorch DQN agents, policy graphs, and network weights
-/environments           # Gymnasium continuous market simulation environments
-/data-pipeline          # PySpark batch jobs and Kafka temporal stream consumers
-/tests                  # Deterministic validation and invariant smoke checks
-Dockerfile              # Multi-stage container deployment specification
-requirements.txt        # Pinned dependency graph and build constraints
-```
+## 3. Agent-Environment Interaction Loop
