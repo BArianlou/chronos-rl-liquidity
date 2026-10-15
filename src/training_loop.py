@@ -1,119 +1,168 @@
 """
 ===============================================================================
-MODULE MANIFEST: CHRONOS TRAINING ORCHESTRATOR (EXECUTION LOOP)
+MODULE MANIFEST: CHRONOS RL AGENT (EXPERIENCE REPLAY & POLICY CONTROLLER)
 ===============================================================================
 System Purpose:
-    Serves as the primary training orchestrator for the CHRONOS reinforcement
-    learning engine. Coordinates the episodic simulation loop by binding the
-    market simulation environment (ChronosMarketEnv) to the decision controller
-    (RLAgent), driving policy convergence across non-stationary regimes.
+    Coordinates experience replay ingestion, exploration-exploitation trade-offs,
+    and mini-batch gradient updates for optimal order execution sequencing.
 
 State Boundaries:
-    - Governs episodic execution horizons, state-action transition flows,
-      and step-wise gradient optimization triggers.
-    - Encapsulates CLI argument parsing and runtime module path resolution.
-    - Strictly delegates market simulation dynamics and reward calculations to
-      ChronosMarketEnv, and experience buffering and network optimization
-      to RLAgent.
+    - Encapsulates experience replay buffer, epsilon-greedy action selection,
+      and mini-batch training execution.
+    - Emits discrete action selections to the environment and target utility updates
+      to the underlying neural network backbone.
+    - Strictly delegates environment simulation to ChronosMarketEnv and computational
+      graph compiling to ChronosAI.
 
 Mathematical/Physical Invariants:
-    1. MDP Transition Sequence:
-       Enforces sequential execution:
-       (S_t, A_t) -> (R_(t+1), S_(t+1), Terminal_Flag)
-       without temporal leakage or out-of-order state mutation.
-    2. Episodic Horizon Bounding:
-       Enforces an upper-bound step ceiling per episode to prevent unbounded
-       state variance while maintaining consistent convergence evaluation.
-
-Design Rationale:
-    Executes step-wise Bellman updates immediately following experience storage
-    once the minimum replay threshold is met. Performing online mini-batch
-    gradient updates enables the agent to adapt dynamically to localized
-    liquidity shifts rather than deferring optimization to episode completion.
+    1. Bellman Optimality Target Generation:
+       Q(s_t, a_t) = r_t + gamma * max_a' Q(s_(t+1), a')
+    2. Exploration Schedule Decay (Epsilon Annealing):
+       epsilon <- max(epsilon_min, epsilon * epsilon_decay)
 ===============================================================================
 """
 
-import argparse
-import os
-import sys
+from collections import deque
+import random
+from typing import Deque, List, Tuple
+import numpy as np
+import tensorflow as tf
 
-# Runtime Module Path Resolution:
-# Ensures automated CI pipelines, containerized workloads, and distributed
-# runners resolve local sibling modules without PYTHONPATH ambiguity.
-CURRENT_DIR: str = os.path.dirname(os.path.abspath(__file__))
-if CURRENT_DIR not in sys.path:
-    sys.path.insert(0, CURRENT_DIR)
-
-from market_env import ChronosMarketEnv
-from rl_agent import RLAgent
+from chronos_ai import ChronosAI
 
 
-def run_chronos_training(episodes: int = 1000) -> None:
-    """Executes the reinforcement learning training and evaluation loop.
+class RLAgent:
+    """Coordinates experience replay ingestion, exploration-exploitation trade-offs,
+    and mini-batch gradient updates for optimal order execution sequencing.
 
-    Instantiates the market environment and agent, steps through sequential
-    microstructure states, records transitions to the replay buffer, and
-    triggers iterative gradient updates to converge on an optimal execution policy.
-
-    Mathematical Invariants:
-        - Bellman Optimality Updates: 1-step temporal difference (TD) mini-batch
-          optimization.
-        - Experience Replay Sampling: Uniform random sampling to decorrelate
-          sequential transitions and satisfy i.i.d. batch assumptions.
-
-    Args:
-        episodes: Number of complete episodic horizons to execute.
+    Attributes:
+        state_size (int): Dimensionality of the incoming observation state tensor.
+        action_size (int): Total count of discrete execution primitives.
+        memory (Deque[Tuple[np.ndarray, int, float, np.ndarray, bool]]): Cyclic
+            replay buffer storing state-action transition tuples.
+        gamma (float): Discount factor for future expected utilities.
+        epsilon (float): Dynamic probability threshold for exploratory action selection.
+        epsilon_min (float): Lower bound on exploration probability.
+        epsilon_decay (float): Multiplicative decay rate applied to epsilon per update.
+        model (tf.keras.Model): Compiled Q-value regression model from ChronosAI.
     """
-    env: ChronosMarketEnv = ChronosMarketEnv()
-    agent: RLAgent = RLAgent(
-        state_size=int(env.observation_space.shape[0]),
-        action_size=int(env.action_space.n),
-    )
 
-    for episode in range(episodes):
-        state, info = env.reset()
+    def __init__(self, state_size: int, action_size: int) -> None:
+        """Initializes the RLAgent parameters, replay queue, and policy backbone.
 
-        # Step-wise execution bounded by environment termination
-        time_step: int = 0
-        done: bool = False
+        Args:
+            state_size: Dimensionality of the environment state space.
+            action_size: Cardinality of the discrete action space.
+        """
+        self.state_size: int = state_size
+        self.action_size: int = action_size
 
-        while not done:
-            time_step += 1
+        # Replay Buffer Management:
+        # Caps replay memory at 2000 transitions (FIFO queue) to bound memory
+        # overhead and prevent policy degradation from stale historical regimes.
+        self.memory: Deque[Tuple[np.ndarray, int, float, np.ndarray, bool]] = deque(maxlen=2000)
 
-            # Select execution action via epsilon-greedy policy
-            action: int = agent.act(state)
+        self.gamma: float = 0.95
+        self.epsilon: float = 1.0
+        self.epsilon_min: float = 0.01
+        self.epsilon_decay: float = 0.995
 
-            # Advance the market simulation environment by one step
-            next_state, reward, terminated, truncated, _ = env.step(action)
-            done = terminated or truncated
+        # Instantiates the underlying neural backbone
+        self.model: tf.keras.Model = ChronosAI(state_size, action_size).model
 
-            # Append transition tuple to FIFO replay buffer
-            agent.store_experience(state, action, reward, next_state, done)
+    def store_experience(
+        self,
+        state: np.ndarray,
+        action: int,
+        reward: float,
+        next_state: np.ndarray,
+        done: bool,
+    ) -> None:
+        """Appends a discrete state transition tuple to the FIFO replay buffer.
 
-            state = next_state
+        Args:
+            state: Pre-transition observation vector of shape (state_size,).
+            action: Discrete action executed by the agent in range [0, action_size - 1].
+            reward: Scalar feedback emitted by the environment (MtM PnL net of impact).
+            next_state: Post-transition observation vector of shape (state_size,).
+            done: Terminal boundary indicator for the transitioned episode.
+        """
+        self.memory.append((state, action, reward, next_state, done))
 
-            # Execute mini-batch gradient update on the Q-network
-            agent.train()
+    def act(self, state: np.ndarray) -> int:
+        """Selects an action primitive via an epsilon-greedy decision policy.
 
-        if episodes > 2:
-            print(
-                f"Episode {episode + 1}/{episodes}: "
-                f"Completed at step {time_step}"
-            )
+        Mathematical Invariants:
+            - Exploration Probability: P(a = random) = epsilon
+            - Exploitation Probability: P(a = argmax_a Q(s, a)) = 1 - epsilon
 
-    print("Chronos Intelligence Audit: SUCCESS")
+        Args:
+            state: Current environment observation vector.
 
+        Returns:
+            int: Discrete action primitive selected for execution.
+        """
+        if np.random.rand() <= self.epsilon:
+            return random.randrange(self.action_size)
 
-if __name__ == "__main__":
-    parser: argparse.ArgumentParser = argparse.ArgumentParser(
-        description="Chronos RL Engine Execution Orchestrator"
-    )
-    parser.add_argument(
-        "--episodes",
-        type=int,
-        default=1000,
-        help="Number of training episodes to simulate (default: 1000)",
-    )
-    args: argparse.Namespace = parser.parse_args()
+        # Input Tensor Formatting:
+        # Guarantees a 2D batch dimension (1, state_size) for model inference.
+        state_tensor: np.ndarray = (
+            np.reshape(state, (1, self.state_size)) if state.ndim == 1 else state
+        )
+        q_values: np.ndarray = self.model.predict(state_tensor, verbose=0)
+        return int(np.argmax(q_values[0]))
 
-    run_chronos_training(episodes=args.episodes)
+    def train(self, batch_size: int = 32) -> None:
+        """Performs a mini-batch gradient descent update on the Q-network.
+
+        Samples decorrelated transitions from replay memory, calculates target
+        Q-values using the Bellman optimality operator, and updates network weights.
+
+        Mathematical Invariants:
+            - Terminal Step: Target Q(s_t, a_t) = r_t
+            - Non-Terminal Step: Target Q(s_t, a_t) = r_t + gamma * max_a' Q(s_(t+1), a')
+            - Epsilon Schedule: epsilon <- max(epsilon_min, epsilon * epsilon_decay)
+
+        Args:
+            batch_size: Minimum batch threshold required to execute gradient optimization.
+        """
+        if len(self.memory) < batch_size:
+            return
+
+        batch: List[Tuple[np.ndarray, int, float, np.ndarray, bool]] = random.sample(
+            self.memory, batch_size
+        )
+
+        # Contiguous Batch Memory Stacking:
+        # Stacks transition tuples into contiguous arrays for efficient vectorized
+        # mini-batch inference across available compute accelerators.
+        states: np.ndarray = np.vstack([x[0] for x in batch])
+        actions: np.ndarray = np.array([x[1] for x in batch], dtype=np.int32)
+        rewards: np.ndarray = np.array([x[2] for x in batch], dtype=np.float32)
+        next_states: np.ndarray = np.vstack([x[3] for x in batch])
+        dones: np.ndarray = np.array([x[4] for x in batch], dtype=bool)
+
+        # Batched inference for current and next-state Q-distributions
+        target_values: np.ndarray = self.model.predict(states, verbose=0)
+        next_q_values: np.ndarray = self.model.predict(next_states, verbose=0)
+
+        # Bellman Optimality Target Generation:
+        # Computes 1-step temporal difference targets using the Bellman equation.
+        for i in range(batch_size):
+            if dones[i]:
+                target_values[i, actions[i]] = rewards[i]
+            else:
+                target_values[i, actions[i]] = rewards[i] + self.gamma * float(
+                    np.max(next_q_values[i])
+                )
+
+        # Gradient update on batched targets
+        self.model.fit(
+            states, target_values, batch_size=batch_size, epochs=1, verbose=0
+        )
+
+        # Exploration Schedule Decay (Epsilon Annealing):
+        # Anneals exploration rate toward lower threshold to stabilize policy convergence.
+        if self.epsilon > self.epsilon_min:
+            self.epsilon *= self.epsilon_decay
